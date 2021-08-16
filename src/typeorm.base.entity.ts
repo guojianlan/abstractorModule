@@ -30,7 +30,6 @@ export abstract class AbstractTypeEntity {
   }
   @BeforeUpdate()
   updateMtime() {
-    console.log('BeforeUpdate');
     this.mtime = ~~(+new Date() / 1000);
   }
 }

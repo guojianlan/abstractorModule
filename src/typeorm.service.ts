@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, NotFoundException } from "@nestjs/common";
 import {
   LessThanOrEqual,
   Repository,
@@ -36,11 +36,32 @@ export interface AbstractServiceExtraOptions {
    * 生成记录表的规则
    */
   log_sql_format?: "YYYY" | "YYYY_MM";
+  /**
+    * page_size 默认为20
+    */
+  page_size?: number
+}
+export interface FindAllQuery {
+  page?: number
+  pageSize?: number
+  needPage: boolean
+  filter?: {
+    [key: string]: any
+  }
+}
+export interface IpaginationResult<T> {
+  list?: T[],
+  pagination?: {
+    count: number,
+    page: number,
+    pageSize: number
+  }
 }
 const defaultOptions: AbstractServiceExtraOptions = {
   findInjectDeleteWhere: true,
-  deleteAfterAction: "log_sql",
+  deleteAfterAction: "log_time",
   log_sql_format: "YYYY",
+  page_size: 20
 };
 export abstract class AbstractTypeOrmService<T> {
   protected _model: Repository<T>;
@@ -62,19 +83,17 @@ export abstract class AbstractTypeOrmService<T> {
   }
   public generatePaginationBuilder(
     builder: SelectQueryBuilder<T>,
-    query?: any
+    query?: FindAllQuery
   ) {
-    let { page = 1, pageSize = 20 } = query;
-    if (query.page) {
+    let { page = 1, pageSize = this.options.page_size, needPage } = query;
+    if (needPage || (query.page && query.pageSize)) {
       if (page < 1) {
         page = 1;
       }
-      builder.skip((page - 1) * pageSize);
-    }
-    if (query.pageSize || query.page) {
       if (pageSize < 1) {
         pageSize = 1;
       }
+      builder.skip((page - 1) * pageSize);
       builder.take(pageSize);
     }
   }
@@ -138,10 +157,10 @@ export abstract class AbstractTypeOrmService<T> {
       });
     }
   }
-  public queryBuilder(query?: any) {
+  public queryBuilder(query?: FindAllQuery) {
     const builder = this._model.createQueryBuilder("model");
     if (query) {
-      this.generatePaginationBuilder(builder, query);
+
       this.generateFilterBuilder(builder, query);
     }
     return builder;
@@ -152,13 +171,34 @@ export abstract class AbstractTypeOrmService<T> {
     });
     return builder;
   }
-  public async find(query?: any): Promise<any> {
-    let builder = this.queryBuilder(query).andWhere("1=1");
-    console.log(this.options);
-    if (this.options.findInjectDeleteWhere) {
-      this.addDeleteCondition(builder);
+  public async find(query?: FindAllQuery): Promise<{ list: T[] } | IpaginationResult<T>> {
+    try {
+      let builder = this.queryBuilder(query).andWhere("1=1");
+      if (this.options.findInjectDeleteWhere && this.options.deleteAfterAction === 'log_time') {
+        this.addDeleteCondition(builder);
+      }
+      if (query.needPage || (query.page && query.pageSize)) {
+        this.generatePaginationBuilder(builder, query);
+      }
+      if (query.needPage || (query.page && query.pageSize)) {
+        let [list, count] = await builder.getManyAndCount();
+        return {
+          list,
+          pagination: {
+            count,
+            page: +query?.page || 1,
+            pageSize: builder?.expressionMap?.take || this.options.page_size
+          }
+        }
+      } else {
+        let list = await builder.getMany()
+        return {
+          list
+        }
+      }
+    } catch (error) {
+      throw error
     }
-    return await builder.getManyAndCount();
   }
   public async create(body): Promise<T[] | InsertResult> {
     try {
@@ -171,29 +211,24 @@ export abstract class AbstractTypeOrmService<T> {
   public async update(id: number, body: any): Promise<T> {
     try {
       const entity = await this.findOne(id);
-      console.log(entity);
       if (entity) {
         return await this._model.save(Object.assign(entity, body));
-      } else {
-        throw new BadRequestException();
       }
     } catch (error) {
       throw error;
     }
   }
-  public async findOne(id: number, query?: any): Promise<T | boolean> {
+  public async findOne(id: number, query?: any): Promise<T | boolean> | never {
     try {
-      
       let builder = this.queryBuilder(query).andWhere("1=1");
       builder.whereInIds(id);
-     
-      if (this.options.findInjectDeleteWhere) {
+      if (this.options.findInjectDeleteWhere && this.options.deleteAfterAction === 'log_time') {
         this.addDeleteCondition(builder);
       }
       let result = await builder.getOneOrFail();
-      return result;
+      return result
     } catch (error) {
-      throw error;
+      throw new NotFoundException()
     }
   }
   public async delete(id: number): Promise<any> {
@@ -205,7 +240,7 @@ export abstract class AbstractTypeOrmService<T> {
         return true;
       }
       if (this.options.deleteAfterAction == "log_time") {
-        let result = this.findOne(id);
+        let result = await this.findOne(id);
         if (result) {
           await this._model.update(id, {
             ...(result as any),
@@ -215,15 +250,14 @@ export abstract class AbstractTypeOrmService<T> {
         }
       }
       if (this.options.deleteAfterAction == "normal") {
-        let result = this.findOne(id);
+        let result = await this.findOne(id);
         if (result) {
           await this._model.delete(id);
           return true;
         }
       }
     } catch (error) {
-      console.log(error);
-      throw new Error("delete error");
+      throw error
     }
   }
   public async deleteLogSql(sql: any) {
@@ -250,10 +284,8 @@ export abstract class AbstractTypeOrmService<T> {
           .execute();
         // 成功后添加记录
       }
-      console.log("记录成功");
     } catch (error) {
-      console.log(error);
-      console.log("记录失败");
+      throw error
     }
   }
 }
