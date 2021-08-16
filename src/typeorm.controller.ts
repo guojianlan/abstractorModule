@@ -3,6 +3,7 @@
 import { Body, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { AbstractTypeOrmService, FindAllQuery, IpaginationResult } from './typeorm.service';
 import { PartialType } from '@nestjs/mapped-types';
+import { generate, Observable, map, from, } from 'rxjs'
 export interface IDecorators {
   findAll?: Array<MethodDecorator | PropertyDecorator>;
   findOne?: Array<MethodDecorator | PropertyDecorator>;
@@ -11,12 +12,16 @@ export interface IDecorators {
   delete?: Array<MethodDecorator | PropertyDecorator>;
 }
 export interface IAfterFn {
-  findAll?: (result: any) => any
-  findOne?: (result: any) => any
-  create?: (result: any) => any
-  update?: (result: any) => any
-  delete?: (result: any) => any
+  findAll?: <T>(result: any) => T
+  findOne?: <T>(result: any) => T
+  create?: <T>(result: any) => T
+  update?: <T>(result: any) => T
+  delete?: <T>(result: any) => T
 }
+function identity<T>(arg: T): T {
+  return arg;
+}
+identity<string>('')
 export type AbstractControllerOptions<T> = {
   model: any;
   decorators?: IDecorators;

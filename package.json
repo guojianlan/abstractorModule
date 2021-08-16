@@ -1,6 +1,6 @@
 {
   "name": "nestjs-abstract-module",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "nestjs common abstract crud module controller service",
   "main": "dist/index.js",
   "files": [
@@ -10,7 +10,7 @@
     "build": "rm -rf ./dist && tsc && npm run build:index",
     "build:index": "rm -rf ./index.js ./index.d.ts && tsc -d --skipLibCheck ./index.ts"
   },
-  "homepage": "https://github.com/guojianlan/abstractorModule",
+  "homepage": "https://github.com/guojianlan/abstractorModule#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/guojianlan/abstractorModule"

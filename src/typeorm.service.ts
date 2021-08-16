@@ -157,11 +157,21 @@ export abstract class AbstractTypeOrmService<T> {
       });
     }
   }
+  public generateOrderBuilder(builder: SelectQueryBuilder<T>, query?: any) {
+    const { orderBy } = query;
+    if (orderBy) {
+      Object.keys(orderBy).forEach((item) => {
+        builder.addOrderBy(item, orderBy[item] == -1 ? 'DESC' : 'ASC')
+      })
+    }
+  }
   public queryBuilder(query?: FindAllQuery) {
     const builder = this._model.createQueryBuilder("model");
     if (query) {
-
       this.generateFilterBuilder(builder, query);
+      this.generateOrderBuilder(builder, query)
+    } else {
+      builder.addOrderBy('id', 'DESC')
     }
     return builder;
   }
