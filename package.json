@@ -10,6 +10,11 @@
     "build": "rm -rf ./dist && tsc && npm run build:index",
     "build:index": "rm -rf ./index.js ./index.d.ts && tsc -d --skipLibCheck ./index.ts"
   },
+  "homepage": "https://github.com/guojianlan/abstractorModule",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/guojianlan/abstractorModule"
+  },
   "keywords": [
     "crud",
     "nestjs",
