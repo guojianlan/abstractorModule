@@ -1,6 +1,6 @@
 {
   "name": "nestjs-abstract-module",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "nestjs common abstract crud module controller service",
   "main": "dist/index.js",
   "files": [
@@ -17,8 +17,14 @@
   },
   "keywords": [
     "crud",
+    "NestJS",
     "nestjs",
-    "nestjs abstract module"
+    "Nest",
+    "NestJS crud",
+    "typeorm",
+    "NestJS typeorm",
+    "NestJS RESTful APIs",
+    "NestJS abstract module"
   ],
   "author": "",
   "license": "ISC",
