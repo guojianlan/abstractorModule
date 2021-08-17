@@ -163,15 +163,16 @@ export abstract class AbstractTypeOrmService<T> {
       Object.keys(orderBy).forEach((item) => {
         builder.addOrderBy(item, orderBy[item] == -1 ? 'DESC' : 'ASC')
       })
+    }else{
+      builder.addOrderBy('id', 'DESC')
     }
   }
   public queryBuilder(query?: FindAllQuery) {
     const builder = this._model.createQueryBuilder("model");
+    console.log(query)
     if (query) {
       this.generateFilterBuilder(builder, query);
       this.generateOrderBuilder(builder, query)
-    } else {
-      builder.addOrderBy('id', 'DESC')
     }
     return builder;
   }
