@@ -27,7 +27,7 @@ export type AbstractControllerOptions<T> = {
   decorators?: IDecorators;
   afterFunctions?: IAfterFn
 };
-function WrapDecorators(decorators: IDecorators) {
+export function WrapDecorators(decorators: IDecorators) {
   return <TFunction extends Function, Y>(
     target: TFunction | object,
     propertyKey?: string | symbol,

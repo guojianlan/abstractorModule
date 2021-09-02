@@ -20,6 +20,7 @@ export const sqlTransformMap = {
   eq: Equal,
   in: In,
 };
+
 /**
  * 标记是否基础查找时添加dtime=0
  */
@@ -299,4 +300,26 @@ export abstract class AbstractTypeOrmService<T> {
       throw error
     }
   }
+}
+
+export type Constructor = new (...args: any[]) => {};
+export const HocService = <T extends Constructor, Y extends Constructor>(
+  Base: T,
+  ExtendClass: Y,
+) => {
+  class HocClass extends Base {}
+  if (ExtendClass) {
+    Object.getOwnPropertyNames(ExtendClass.prototype).forEach((name) => {
+      if (name !== 'constructor') {
+        HocClass.prototype[name] = ExtendClass.prototype[name];
+      }
+    });
+  }
+  return HocClass as unknown as typeof Base;
+};
+export class BaseServiceClass extends AbstractTypeOrmService<any> {
+  _model: Repository<any>;
+}
+export class InjectServiceClass<T> {
+  _model: Repository<T>;
 }
