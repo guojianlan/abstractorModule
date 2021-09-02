@@ -302,21 +302,7 @@ export abstract class AbstractTypeOrmService<T> {
   }
 }
 
-export type Constructor = new (...args: any[]) => {};
-export const HocService = <T extends Constructor, Y extends Constructor>(
-  Base: T,
-  ExtendClass: Y,
-) => {
-  class HocClass extends Base {}
-  if (ExtendClass) {
-    Object.getOwnPropertyNames(ExtendClass.prototype).forEach((name) => {
-      if (name !== 'constructor') {
-        HocClass.prototype[name] = ExtendClass.prototype[name];
-      }
-    });
-  }
-  return HocClass as unknown as typeof Base;
-};
+
 export class BaseServiceClass extends AbstractTypeOrmService<any> {
   _model: Repository<any>;
 }
