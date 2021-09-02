@@ -1,6 +1,6 @@
 {
   "name": "nestjs-abstract-module",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "nestjs common abstract crud module controller service",
   "main": "dist/index.js",
   "files": [

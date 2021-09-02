@@ -7,7 +7,7 @@ export const HocClass= <T extends Constructor, Y extends Constructor>(
   if (ExtendClass) {
     Object.getOwnPropertyNames(ExtendClass.prototype).forEach((name) => {
       if (name !== 'constructor') {
-        HocClass.prototype[name] = ExtendClass.prototype[name];
+        BaseClass.prototype[name] = ExtendClass.prototype[name];
       }
     });
   }
