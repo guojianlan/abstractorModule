@@ -303,9 +303,9 @@ export abstract class AbstractTypeOrmService<T> {
 }
 
 
-export class BaseServiceClass extends AbstractTypeOrmService<any> {
-  _model: Repository<any>;
+export class BaseServiceClass<T> extends AbstractTypeOrmService<T> {
+  _model: Repository<T>;
 }
-export class InjectServiceClass<T> {
+export class InjectServiceClass<T> extends  AbstractTypeOrmService<T>{
   _model: Repository<T>;
 }
