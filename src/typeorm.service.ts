@@ -11,6 +11,7 @@ import {
   InsertResult,
   EntityTarget,
 } from "typeorm";
+export const cacheTable = {};
 
 export const sqlTransformMap = {
   gte: MoreThanOrEqual,
@@ -21,6 +22,9 @@ export const sqlTransformMap = {
   in: In,
 };
 
+export interface extentEntityTarget {
+  __delete_table__?: string;
+}
 /**
  * 标记是否基础查找时添加dtime=0
  */
@@ -40,7 +44,9 @@ export interface AbstractServiceExtraOptions {
   /**
     * page_size 默认为20
     */
-  page_size?: number
+  page_size?: number;
+
+  logger?: (args?: any) => void;
 }
 export interface FindAllQuery {
   page?: number
@@ -62,15 +68,18 @@ const defaultOptions: AbstractServiceExtraOptions = {
   findInjectDeleteWhere: true,
   deleteAfterAction: "log_time",
   log_sql_format: "YYYY",
-  page_size: 20
+  page_size: 20,
+  logger: (message) => {
+    console.log(message)
+  }
 };
 export abstract class AbstractTypeOrmService<T> {
   protected _model: Repository<T>;
-  protected _entity: EntityTarget<T>;
+  protected _entity: EntityTarget<T> & extentEntityTarget;
   protected options: AbstractServiceExtraOptions;
   constructor(
     model: Repository<T>,
-    _entity: EntityTarget<T>,
+    _entity: EntityTarget<T> & extentEntityTarget,
     options: AbstractServiceExtraOptions = {
       ...defaultOptions,
     }
@@ -164,7 +173,7 @@ export abstract class AbstractTypeOrmService<T> {
       Object.keys(orderBy).forEach((item) => {
         builder.addOrderBy(item, orderBy[item] == -1 ? 'DESC' : 'ASC')
       })
-    }else{
+    } else {
       builder.addOrderBy('id', 'DESC')
     }
   }
@@ -208,16 +217,18 @@ export abstract class AbstractTypeOrmService<T> {
           list
         }
       }
-    } catch (error) {
-      throw error
+    } catch (error: any) {
+      this.options.logger(error)
+      throw new BadRequestException(error.message || error.stack)
     }
   }
   public async create(body): Promise<T[] | InsertResult> {
     try {
       const createBody = this._model.create(body);
       return await this._model.save(createBody);
-    } catch (error) {
-      throw error;
+    } catch (error:any) {
+      this.options.logger(error)
+      throw new BadRequestException(error.message || error.stack)
     }
   }
   public async update(id: number, body: any): Promise<T> {
@@ -227,7 +238,8 @@ export abstract class AbstractTypeOrmService<T> {
         return await this._model.save(Object.assign(entity, body));
       }
     } catch (error) {
-      throw error;
+      this.options.logger(error)
+      throw new BadRequestException(error.message || error.stack)
     }
   }
   public async findOne(id: number, query?: any): Promise<T | boolean> | never {
@@ -240,6 +252,7 @@ export abstract class AbstractTypeOrmService<T> {
       let result = await builder.getOneOrFail();
       return result
     } catch (error) {
+      this.options.logger(error)
       throw new NotFoundException()
     }
   }
@@ -265,11 +278,31 @@ export abstract class AbstractTypeOrmService<T> {
         let result = await this.findOne(id);
         if (result) {
           await this._model.delete(id);
+          this.createColumnByDelete(result);
           return true;
         }
       }
     } catch (error) {
-      throw error
+      this.options.logger(error)
+      throw new BadRequestException(error.message || error.stack)
+    }
+  }
+  public async createColumnByDelete(data: any) {
+    if (this._entity?.__delete_table__) {
+      const mangager = this._model.manager;
+      const table_name = this._entity.__delete_table__;
+      if (data) {
+        await mangager
+          .createQueryBuilder()
+          .insert()
+          .into(table_name)
+          .values({
+            ...data,
+            dtime: ~~(+new Date() / 1000),
+          })
+          .execute();
+        // 成功后添加记录
+      }
     }
   }
   public async deleteLogSql(sql: any) {
@@ -284,9 +317,15 @@ export abstract class AbstractTypeOrmService<T> {
       }
       const origin_table_name = this._model.metadata.tableName;
       let create_table_name = `log_${this._model.metadata.tableName}_${table_name}`;
-      let result = await mangager.query(
-        `CREATE TABLE if not exists ${create_table_name} like ${origin_table_name}`
-      );
+      let result = false;
+      if (!cacheTable[create_table_name]) {
+        result = await mangager.query(
+          `CREATE TABLE if not exists ${create_table_name} like ${origin_table_name};`,
+        );
+        cacheTable[create_table_name] = true;
+      } else {
+        result = true;
+      }
       if (result) {
         await mangager
           .createQueryBuilder()
@@ -306,6 +345,6 @@ export abstract class AbstractTypeOrmService<T> {
 export class BaseServiceClass<T> extends AbstractTypeOrmService<T> {
   _model: Repository<T>;
 }
-export class InjectServiceClass<T> extends  AbstractTypeOrmService<T>{
+export class InjectServiceClass<T> extends AbstractTypeOrmService<T>{
   _model: Repository<T>;
 }
