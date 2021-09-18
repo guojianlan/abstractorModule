@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/ban-types */
-import { Body, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { AbstractTypeOrmService, FindAllQuery, IpaginationResult } from './typeorm.service';
 import { PartialType } from '@nestjs/mapped-types';
-import { generate, Observable, map, from, } from 'rxjs'
+import { validate } from 'class-validator'
+import { plainToClass } from 'class-transformer';
+
 export interface IDecorators {
   findAll?: Array<MethodDecorator | PropertyDecorator>;
   findOne?: Array<MethodDecorator | PropertyDecorator>;
@@ -56,11 +58,18 @@ export function WrapDecorators(decorators: IDecorators) {
 export type ClassType<T> = {
   new(...args: any[]): T;
 };
-export function WrapController<T>(options: AbstractControllerOptions<T>): any {
+
+
+export function WrapController<T>(options: AbstractControllerOptions<T>) {
   const model = options.model;
-  class createDto extends model { }
-  class updateDto extends PartialType(createDto) { }
+
+  // class createDto extends model { }
+  // class updateDto extends PartialType(createDto) { }
+  // let createDto =Par<HocClass(function(){} as any,model) as unknown as Type<any>>
+  // class updateDto extends PartialType(createDto) { }
   abstract class AbstractController {
+
+
     protected readonly _service: AbstractTypeOrmService<T>;
     constructor(service: any) {
       this._service = service;
@@ -90,18 +99,44 @@ export function WrapController<T>(options: AbstractControllerOptions<T>): any {
     }
     @WrapDecorators(options.decorators)
     @Post()
-    public async create(@Body() body: createDto) {
-      let result = await this._service.create(body);
-      if (options?.afterFunctions?.create) {
-        result = await options?.afterFunctions?.create(result)
+    public async create(@Body() body: any) {
+      try {
+        const object = plainToClass(model, body);
+        let error = await validate(object);
+        if (error.length > 0) {
+          throw new BadRequestException(error.map(item => {
+            return {
+              property: item.property,
+              constraints: Object.values(item.constraints || {})
+            }
+          }))
+        }
+        let result = await this._service.create(body);
+        if (options?.afterFunctions?.create) {
+          result = await options?.afterFunctions?.create(result)
+        }
+        return {
+          data: result
+        }
+      } catch (error) {
+        throw error
       }
-      return {
-        data: result
-      }
+
     }
     @WrapDecorators(options.decorators)
     @Put(':id')
-    public async update(@Param() id: number, @Body() body: updateDto) {
+    public async update(@Param() id: number, @Body() body: any) {
+      const partial = PartialType(model);
+      let object = plainToClass(partial, body)
+      let error = await validate(object);
+      if (error.length > 0) {
+        throw new BadRequestException(error.map(item => {
+          return {
+            property: item.property,
+            constraints: Object.values(item.constraints || {})
+          }
+        }))
+      }
       let result = await this._service.update(id, body);
       if (options?.afterFunctions?.update) {
         result = await options?.afterFunctions?.update(result)
@@ -121,5 +156,5 @@ export function WrapController<T>(options: AbstractControllerOptions<T>): any {
       }
     }
   }
-  return AbstractController;
+  return AbstractController as unknown as (new (...args) => { [key in keyof AbstractController]: AbstractController[key] });
 }
