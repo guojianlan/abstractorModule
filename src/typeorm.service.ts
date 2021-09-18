@@ -24,6 +24,7 @@ export const sqlTransformMap = {
 
 export interface extentEntityTarget {
   __delete_table__?: string;
+  __table_name__?: string;
 }
 /**
  * 标记是否基础查找时添加dtime=0
@@ -74,9 +75,9 @@ const defaultOptions: AbstractServiceExtraOptions = {
   }
 };
 export abstract class AbstractTypeOrmService<T> {
-  protected _model: Repository<T>;
-  protected _entity: EntityTarget<T> & extentEntityTarget;
-  protected options: AbstractServiceExtraOptions;
+  public _model: Repository<T>;
+  public _entity: EntityTarget<T> & extentEntityTarget;
+  public options: AbstractServiceExtraOptions;
   constructor(
     model: Repository<T>,
     _entity: EntityTarget<T> & extentEntityTarget,
@@ -177,9 +178,12 @@ export abstract class AbstractTypeOrmService<T> {
       builder.addOrderBy('id', 'DESC')
     }
   }
-  public queryBuilder(query?: FindAllQuery) {
-    const builder = this._model.createQueryBuilder("model");
-    console.log(query)
+  public queryBuilder(query?: FindAllQuery,table_alias?: string) {
+    const builder = this._model.createQueryBuilder(
+        table_alias ||
+        this._model.metadata.tableName ||
+        this._entity.__table_name__,
+    );
     if (query) {
       this.generateFilterBuilder(builder, query);
       this.generateOrderBuilder(builder, query)

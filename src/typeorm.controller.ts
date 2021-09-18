@@ -5,6 +5,7 @@ import { AbstractTypeOrmService, FindAllQuery, IpaginationResult } from './typeo
 import { PartialType } from '@nestjs/mapped-types';
 import { validate } from 'class-validator'
 import { plainToClass } from 'class-transformer';
+import { InsertResult } from 'typeorm';
 
 export interface IDecorators {
   findAll?: Array<MethodDecorator | PropertyDecorator>;
@@ -13,17 +14,23 @@ export interface IDecorators {
   update?: Array<MethodDecorator | PropertyDecorator>;
   delete?: Array<MethodDecorator | PropertyDecorator>;
 }
+export interface IAbstractController<T> {
+  _service: AbstractTypeOrmService<T>;
+  findAll: (
+      query: FindAllQuery,
+  ) => Promise<{ data: { list: T[] } | IpaginationResult<T> }>;
+  findOne: (id: number) => Promise<{ data: boolean | T }>;
+  create: (body: any) => Promise<{ data: T[] | InsertResult }>;
+  update: (id: number, body: any) => Promise<{ data: T }>;
+  delete: (id: number) => Promise<boolean>;
+}
 export interface IAfterFn {
-  findAll?: <T>(result: any) => T
-  findOne?: <T>(result: any) => T
-  create?: <T>(result: any) => T
-  update?: <T>(result: any) => T
-  delete?: <T>(result: any) => T
+  findAll?: <T>(this: IAbstractController<T>, result: any) => Promise<T>;
+  findOne?: <T>(this: IAbstractController<T>, result: any) => Promise<T>;
+  create?: <T>(this: IAbstractController<T>, result: any) => Promise<T>;
+  update?: <T>(this: IAbstractController<T>, result: any) => Promise<T>;
+  delete?: <T>(this: IAbstractController<T>, result: any) => Promise<T>;
 }
-function identity<T>(arg: T): T {
-  return arg;
-}
-identity<string>('')
 export type AbstractControllerOptions<T> = {
   model: any;
   decorators?: IDecorators;
@@ -67,11 +74,9 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
   // class updateDto extends PartialType(createDto) { }
   // let createDto =Par<HocClass(function(){} as any,model) as unknown as Type<any>>
   // class updateDto extends PartialType(createDto) { }
-  abstract class AbstractController {
-
-
-    protected readonly _service: AbstractTypeOrmService<T>;
-    constructor(service: any) {
+  abstract class AbstractController implements IAbstractController<T>{
+    public readonly _service: AbstractTypeOrmService<T>;
+    protected constructor(service: any) {
       this._service = service;
     }
     @Get()
@@ -79,7 +84,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
     public async findAll(@Query() query: FindAllQuery): Promise<{ data: { list: T[] } | IpaginationResult<T> }> {
       let result = await this._service.find(query)
       if (options?.afterFunctions?.findAll) {
-        result = await options?.afterFunctions?.findAll(result)
+        result = await options?.afterFunctions?.findAll.apply(this,[result])
       }
       // 判断是否有page
       return {
@@ -91,7 +96,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
     public async findOne(@Param('id') id: number) {
       let result = await this._service.findOne(id);
       if (options?.afterFunctions?.findOne) {
-        result = await options?.afterFunctions?.findOne(result)
+        result = await options?.afterFunctions?.findOne.apply(this, [result]);
       }
       return {
         data: result
@@ -113,7 +118,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
         }
         let result = await this._service.create(body);
         if (options?.afterFunctions?.create) {
-          result = await options?.afterFunctions?.create(result)
+          result = await options?.afterFunctions?.create.apply(this, [result]);
         }
         return {
           data: result
@@ -139,7 +144,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
       }
       let result = await this._service.update(id, body);
       if (options?.afterFunctions?.update) {
-        result = await options?.afterFunctions?.update(result)
+        result = await options?.afterFunctions?.update.apply(this, [result]);
       }
       return {
         data: result
@@ -150,7 +155,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
     public async delete(@Param('id') id: number): Promise<boolean> | never {
       let result = await this._service.delete(id);
       if (options?.afterFunctions?.delete) {
-        return options?.afterFunctions?.delete(result)
+        return options?.afterFunctions?.delete.apply(this, [result]);
       } else {
         return result
       }
