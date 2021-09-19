@@ -5,7 +5,7 @@ import { AbstractTypeOrmService, FindAllQuery, IpaginationResult } from './typeo
 import { PartialType } from '@nestjs/mapped-types';
 import { validate } from 'class-validator'
 import { plainToClass } from 'class-transformer';
-import { InsertResult } from 'typeorm';
+import { InsertResult,EntityTarget } from 'typeorm';
 
 export interface IDecorators {
   findAll?: Array<MethodDecorator | PropertyDecorator>;
@@ -116,7 +116,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
             }
           }))
         }
-        let result = await this._service.create(body);
+        let result = await this._service.create<any>(body);
         if (options?.afterFunctions?.create) {
           result = await options?.afterFunctions?.create.apply(this, [result]);
         }

@@ -226,7 +226,7 @@ export abstract class AbstractTypeOrmService<T> {
       throw new BadRequestException(error.message || error.stack)
     }
   }
-  public async create(body): Promise<T[] | InsertResult> {
+  public async create<Y>(body:any): Promise<Y | T[] | InsertResult> {
     try {
       const createBody = this._model.create(body);
       return await this._model.save(createBody);

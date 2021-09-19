@@ -6,6 +6,8 @@ import {
   AfterLoad,
 } from 'typeorm';
 export abstract class AbstractTypeEntity {
+  static __delete_table__?: string;
+  static __table_name__?: string;
   @PrimaryGeneratedColumn()
   id: number;
   @Column({
