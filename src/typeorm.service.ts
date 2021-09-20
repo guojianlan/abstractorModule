@@ -202,10 +202,10 @@ export abstract class AbstractTypeOrmService<T> {
       if (this.options.findInjectDeleteWhere && this.options.deleteAfterAction === 'log_time') {
         this.addDeleteCondition(builder);
       }
-      if (query.needPage || (query.page && query.pageSize)) {
+      if (query && query.needPage || (query.page && query.pageSize)) {
         this.generatePaginationBuilder(builder, query);
       }
-      if (query.needPage || (query.page && query.pageSize)) {
+      if (query && query.needPage || (query.page && query.pageSize)) {
         let [list, count] = await builder.getManyAndCount();
         return {
           list,
