@@ -11,6 +11,7 @@ import {
   InsertResult,
   EntityTarget,
 } from "typeorm";
+import {isObjectEmpty} from "./utils";
 export const cacheTable = {};
 
 export const sqlTransformMap = {
@@ -78,7 +79,7 @@ export abstract class AbstractTypeOrmService<T> {
   public _model: Repository<T>;
   public _entity: EntityTarget<T> & extentEntityTarget;
   public options: AbstractServiceExtraOptions;
-  constructor(
+  protected constructor(
     model: Repository<T>,
     _entity: EntityTarget<T> & extentEntityTarget,
     options: AbstractServiceExtraOptions = {
@@ -184,7 +185,7 @@ export abstract class AbstractTypeOrmService<T> {
         this._model.metadata.tableName ||
         this._entity.__table_name__,
     );
-    if (query) {
+    if (!isObjectEmpty(query)) {
       this.generateFilterBuilder(builder, query);
       this.generateOrderBuilder(builder, query)
     }
@@ -200,19 +201,21 @@ export abstract class AbstractTypeOrmService<T> {
     try {
       let builder = this.queryBuilder(query).andWhere("1=1");
       if (this.options.findInjectDeleteWhere && this.options.deleteAfterAction === 'log_time') {
-        this.addDeleteCondition(builder);
+        await this.addDeleteCondition(builder);
       }
-      if (query && query.needPage || (query.page && query.pageSize)) {
-        this.generatePaginationBuilder(builder, query);
-      }
-      if (query && query.needPage || (query.page && query.pageSize)) {
-        let [list, count] = await builder.getManyAndCount();
-        return {
-          list,
-          pagination: {
-            count,
-            page: +query?.page || 1,
-            pageSize: builder?.expressionMap?.take || this.options.page_size
+      if(!isObjectEmpty(query)){
+        if (query.needPage || (query.page && query.pageSize)) {
+          this.generatePaginationBuilder(builder, query);
+        }
+        if (query.needPage || (query.page && query.pageSize)) {
+          let [list, count] = await builder.getManyAndCount();
+          return {
+            list,
+            pagination: {
+              count,
+              page: +query?.page || 1,
+              pageSize: builder?.expressionMap?.take || this.options.page_size
+            }
           }
         }
       } else {
@@ -251,10 +254,9 @@ export abstract class AbstractTypeOrmService<T> {
       let builder = this.queryBuilder(query).andWhere("1=1");
       builder.whereInIds(id);
       if (this.options.findInjectDeleteWhere && this.options.deleteAfterAction === 'log_time') {
-        this.addDeleteCondition(builder);
+        await this.addDeleteCondition(builder);
       }
-      let result = await builder.getOneOrFail();
-      return result
+      return await builder.getOneOrFail();
     } catch (error) {
       this.options.logger(error)
       throw new NotFoundException()
@@ -265,7 +267,7 @@ export abstract class AbstractTypeOrmService<T> {
       if (this.options.deleteAfterAction == "log_sql") {
         let result = await this.findOne(id);
         await this._model.delete(result);
-        this.deleteLogSql(result);
+        await this.deleteLogSql(result);
         return true;
       }
       if (this.options.deleteAfterAction == "log_time") {
@@ -282,7 +284,7 @@ export abstract class AbstractTypeOrmService<T> {
         let result = await this.findOne(id);
         if (result) {
           await this._model.delete(id);
-          this.createColumnByDelete(result);
+          await this.createColumnByDelete(result);
           return true;
         }
       }
@@ -293,10 +295,10 @@ export abstract class AbstractTypeOrmService<T> {
   }
   public async createColumnByDelete(data: any) {
     if (this._entity?.__delete_table__) {
-      const mangager = this._model.manager;
+      const manager = this._model.manager;
       const table_name = this._entity.__delete_table__;
       if (data) {
-        await mangager
+        await manager
           .createQueryBuilder()
           .insert()
           .into(table_name)
@@ -311,7 +313,7 @@ export abstract class AbstractTypeOrmService<T> {
   }
   public async deleteLogSql(sql: any) {
     try {
-      const mangager = this._model.manager;
+      const manager = this._model.manager;
       const date = new Date();
       let table_name = date.getFullYear() + "";
       if (this.options.log_sql_format == "YYYY_MM") {
@@ -321,17 +323,17 @@ export abstract class AbstractTypeOrmService<T> {
       }
       const origin_table_name = this._model.metadata.tableName;
       let create_table_name = `log_${this._model.metadata.tableName}_${table_name}`;
-      let result = false;
+      let result;
       if (!cacheTable[create_table_name]) {
-        result = await mangager.query(
-          `CREATE TABLE if not exists ${create_table_name} like ${origin_table_name};`,
+        result = await manager.query(
+          'create table' +` if not exists ${create_table_name} like ${origin_table_name};`,
         );
         cacheTable[create_table_name] = true;
       } else {
         result = true;
       }
       if (result) {
-        await mangager
+        await manager
           .createQueryBuilder()
           .insert()
           .into(create_table_name)
@@ -344,11 +346,10 @@ export abstract class AbstractTypeOrmService<T> {
     }
   }
 }
-
-
 export class BaseServiceClass<T> extends AbstractTypeOrmService<T> {
   _model: Repository<T>;
 }
 export class InjectServiceClass<T> extends AbstractTypeOrmService<T>{
   _model: Repository<T>;
 }
+
