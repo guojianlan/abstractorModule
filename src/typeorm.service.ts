@@ -203,7 +203,7 @@ export abstract class AbstractTypeOrmService<T> {
       if (this.options.findInjectDeleteWhere && this.options.deleteAfterAction === 'log_time') {
         await this.addDeleteCondition(builder);
       }
-      if(!isObjectEmpty(query)){
+      if(!isObjectEmpty(query)) {
         if (query.needPage || (query.page && query.pageSize)) {
           this.generatePaginationBuilder(builder, query);
         }
@@ -218,11 +218,10 @@ export abstract class AbstractTypeOrmService<T> {
             }
           }
         }
-      } else {
-        let list = await builder.getMany()
-        return {
-          list
-        }
+      }
+      let list = await builder.getMany()
+      return {
+        list
       }
     } catch (error: any) {
       this.options.logger(error)
