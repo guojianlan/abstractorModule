@@ -5,7 +5,7 @@ import { AbstractTypeOrmService, FindAllQuery, IpaginationResult } from './typeo
 import { PartialType } from '@nestjs/mapped-types';
 import { validate } from 'class-validator'
 import { plainToClass } from 'class-transformer';
-import { InsertResult,EntityTarget } from 'typeorm';
+import { InsertResult } from 'typeorm';
 
 export interface IDecorators {
   findAll?: Array<MethodDecorator | PropertyDecorator>;
@@ -18,10 +18,10 @@ export interface IAbstractController<T> {
   _service: AbstractTypeOrmService<T>;
   findAll: (
       query: FindAllQuery,
-  ) => Promise<{ data: { list: T[] } | IpaginationResult<T> }>;
-  findOne: (id: number) => Promise<{ data: boolean | T }>;
-  create: (body: any) => Promise<{ data: T[] | InsertResult }>;
-  update: (id: number, body: any) => Promise<{ data: T }>;
+  ) => Promise<{ list: T[] } | IpaginationResult<T> >;
+  findOne: (id: number) => Promise< boolean | T >;
+  create: (body: any) => Promise< T[] | InsertResult >;
+  update: (id: number, body: any) => Promise< T >;
   delete: (id: number) => Promise<boolean>;
 }
 export interface IAfterFn {
@@ -81,15 +81,13 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
     }
     @Get()
     @WrapDecorators(options.decorators)
-    public async findAll(@Query() query: FindAllQuery): Promise<{ data: { list: T[] } | IpaginationResult<T> }> {
+    public async findAll(@Query() query: FindAllQuery)  {
       let result = await this._service.find(query)
       if (options?.afterFunctions?.findAll) {
         result = await options?.afterFunctions?.findAll.apply(this,[result])
       }
       // 判断是否有page
-      return {
-        data: result
-      }
+      return result
     }
     @WrapDecorators(options.decorators)
     @Get(':id')
@@ -98,9 +96,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
       if (options?.afterFunctions?.findOne) {
         result = await options?.afterFunctions?.findOne.apply(this, [result]);
       }
-      return {
-        data: result
-      }
+      return result
     }
     @WrapDecorators(options.decorators)
     @Post()
@@ -120,9 +116,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
         if (options?.afterFunctions?.create) {
           result = await options?.afterFunctions?.create.apply(this, [result]);
         }
-        return {
-          data: result
-        }
+        return result
       } catch (error) {
         throw error
       }
@@ -146,9 +140,7 @@ export function WrapController<T>(options: AbstractControllerOptions<T>) {
       if (options?.afterFunctions?.update) {
         result = await options?.afterFunctions?.update.apply(this, [result]);
       }
-      return {
-        data: result
-      }
+      return result
     }
     @WrapDecorators(options.decorators)
     @Delete(':id')
